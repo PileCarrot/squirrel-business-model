@@ -68,6 +68,24 @@ def partnership_drivers(data, month, mau):
     return dau, bank_revenue, ad_revenue
 
 
+def commerce_lines(scenario, month, mau, plus_paid):
+    v = scenario.get("vouchers")
+    h = scenario.get("savings")
+    orders = voucher_revenue = savers = balances = savings_revenue = operating_cost = 0
+    if v and month >= v["start_month"]:
+        orders = mau * v["approved_orders_per_mau"]
+        voucher_revenue = orders * v["average_order_gbp"] * v["net_commission_share"]
+        operating_cost = v["monthly_ops_gbp"] + orders * v["cost_per_order_gbp"]
+    if h and month >= h["start_month"]:
+        savers = plus_paid * h["funded_plus_share"]
+        balances = savers * h["average_funded_balance_gbp"]
+        savings_revenue = balances * h["annual_net_balance_share"] / 12
+        operating_cost += h["monthly_ops_gbp"]
+        if month == h["start_month"]:
+            operating_cost += h["setup_gbp"]
+    return orders, voucher_revenue, savers, balances, savings_revenue, operating_cost
+
+
 def simulate(data, name):
     p, g, c = (data[key] for key in ("product", "growth", "costs"))
     s = data["scenarios"][name]
@@ -105,6 +123,14 @@ def simulate(data, name):
     previous_mau = previous_registered = previous_paid = 0
     cumulative_partial = 0
     rows = []
+    active_stock = 0
+    weights = g.get("registration_weights")
+    if weights is not None:
+        if len(weights) != 12 or min(weights) < 0 or sum(weights) <= 0:
+            raise ValueError("Registration weights must define 12 nonnegative months")
+        if any(not 0 <= g[k] <= 1 for k in ("activation_rate", "monthly_active_churn")):
+            raise ValueError("Activation and churn must lie between zero and one")
+        weights = [weight / sum(weights) for weight in weights]
     for year, (mau, registered, share) in enumerate(
         zip(g["year_end_mau"], g["year_end_registered"], shares), start=1
     ):
@@ -115,6 +141,11 @@ def simulate(data, name):
             month = (year - 1) * 12 + period
             active = previous_mau + weight * (mau - previous_mau)
             total_registered = previous_registered + weight * (registered - previous_registered)
+            if weights is not None:
+                new_registrations = (registered - previous_registered) * weights[period - 1]
+                total_registered = previous_registered + (registered - previous_registered) * sum(weights[:period])
+                active_stock = active_stock * (1 - g["monthly_active_churn"]) + new_registrations * g["activation_rate"]
+                active = active_stock
             prior_share = shares[year - 2] if year > 1 else share
             paid = active * (prior_share + weight * (share - prior_share))
             counts = (paid * (1 - mix), paid * mix)
@@ -125,7 +156,8 @@ def simulate(data, name):
                     stream = contract["stream"]
                     booked[stream] = booked.get(stream, 0) + contract["monthly_gbp"]
             dau, bank_referral, ads = partnership_drivers(data, month, active)
-            partnership = sum_known([sum(booked.values()), bank_referral, ads])
+            orders, voucher, savers, balances, savings, commerce_cost = commerce_lines(s, month, active, counts[1])
+            partnership = sum_known([sum(booked.values()), bank_referral, ads, voucher, savings])
             revenue = sum_known([subscription, partnership])
             service = sum_known(n * cost if cost is not None else None
                                 for n, cost in zip(counts, tier_costs))
@@ -133,7 +165,7 @@ def simulate(data, name):
             selling_fee = None if fee is None else subscription * fee
             minimum_top_up = max(0, c.get("bank_monthly_minimum_gbp", 0)
                                  - paid * c.get("bank_gbp_per_paid_user_month", 0)) if proxy is None else 0
-            partial_cost = sum_known([fixed, service, minimum_top_up])
+            partial_cost = sum_known([fixed, service, minimum_top_up, commerce_cost])
             total_cost = sum_known([partial_cost, selling_fee,
                                     None if other is None else other[year - 1] / 12])
             partial_net = revenue - partial_cost if None not in (revenue, partial_cost) else None
@@ -148,6 +180,9 @@ def simulate(data, name):
                              mau=active, estimated_dau=dau, paid=paid, starter_paid=counts[0], plus_paid=counts[1],
                              subscription_gbp=subscription, partnership_gbp=partnership,
                              bank_referral_gbp=bank_referral, merchant_ads_gbp=ads,
+                             voucher_orders=orders, voucher_gbp=voucher, funded_savers=savers,
+                             savings_balance_gbp=balances, savings_gbp=savings,
+                             commerce_operating_cost_gbp=commerce_cost,
                              revenue_gbp=revenue, fixed_modeled_gbp=fixed, service_gbp=service,
                              selling_fee_gbp=selling_fee, bank_minimum_top_up_gbp=minimum_top_up,
                              partial_cost_gbp=partial_cost,
@@ -163,7 +198,7 @@ def simulate(data, name):
 
 
 def annualize(rows):
-    sums = ("subscription_gbp", "partnership_gbp", "bank_referral_gbp", "merchant_ads_gbp",
+    sums = ("voucher_gbp", "savings_gbp", "commerce_operating_cost_gbp", "subscription_gbp", "partnership_gbp", "bank_referral_gbp", "merchant_ads_gbp",
             "revenue_gbp", "fixed_modeled_gbp",
             "service_gbp", "bank_minimum_top_up_gbp", "partial_cost_gbp", "partial_net_gbp", "total_cost_gbp", "net_gbp")
     for start in range(0, len(rows), 12):

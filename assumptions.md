@@ -47,3 +47,10 @@
 - M10 开始小规模销售商家广告。DAU/MAU 25%，每位日活每日 1 个展示机会，50% 售出，净 CPM £2。该单价假设为直接售卖的赞助位。Appodeal 2024 Q4 英国公开样本约为横幅 $0.30、插屏 $6.20，广告格式差别很大。£2 与填充率需用商家试点验证。[Appodeal](https://appodeal.com/wp-content/uploads/2025/03/Quarterly_Mobile_eCPM_Report_-_Q4_2024.pdf)
 - Open Banking 采用 £0.25/付费用户月，年度最低 £3,000 暂按每月 £250 抵扣用量等额预算。Moneyhub 2022 年公开文件列出从 £1.50/活跃用户年起及初创企业 £3,000/年 AIS 最低承诺。finAPI 官网有 €60/月覆盖最多 200 用户的 B2C 档。两者作为公开数量级参考，实际需核对英国接入资格、费用、VAT、最低承诺和一次性费用。套餐限额仍为 2/5，按用户计价的情景中该限额不直接乘以单价。[Moneyhub 公开价目](https://assets.applytosupply.digitalmarketplace.service.gov.uk/g-cloud-13/documents/720231/487593789891199-pricing-document-2022-05-18-1136.pdf) · [finAPI](https://www.finapi.io/en/prices/)
 - GPT-5 mini 公开价 $0.25/百万输入 token、$2/百万输出 token。规划汇率 £0.76/$。问答暂估每次 2,000 输入/500 输出，周报 6,000 输入/1,000 输出。20 次问答和平均 4.33 份周报合计约 £0.034/用户月。另留 £0.15/付费用户月用于其他直接服务成本，为规划假设。[OpenAI](https://developers.openai.com/api/docs/models/gpt-5-mini)
+
+## 英国试点 · 优惠券与合作储蓄
+
+- 优惠券专区按已批准、可归因订单的成交额收费，启动 M10。试算每 100 MAU 每月带来 3 笔合格订单，每笔 £30，POTI 净佣金率 6%（£1.80/单）。退单和仅领券通过“合格”定义排除；同一订单仅归因一次。6% 参考 Awin 的示例费率，订单率和客单价是规划假设。[Awin 价格示例](https://www.awin.com/gb/pricing/advertisers) · [优惠码归因](https://www.awin.com/gb/advertisers/tools)
+- 合作储蓄 M16 试点，与 M13 开始的开户返佣分别建模。估计 £7.99 Plus 用户中 25% 实际存入，每位已存款用户平均保持 £750，POTI 年化净分成 0.20 个百分点。£200 和 £2,000 为余额敏感性参考。FCA 的 18–24 岁与 25–34 岁现金储蓄中位区间分别为 £2,000–<£3,000 与 £3,000–<£4,000（在拥有现金储蓄者的口径下），这里估算的是转入一个新合作账户的那一部分。Flagstone 提供商业结构参考。两类银行收入只有在合同允许相应结算时才同时计入。[FCA Financial Lives 2024](https://www.fca.org.uk/publication/financial-lives/financial-lives-survey-2024-key-findings.pdf) · [Flagstone](https://www.flagstoneim.com/personal/how-it-works)
+- 仍以英国为试点，累计注册目标为 15k/35k/90k。每月新增按年度预算目标和相对月份权重分配，高峰假定落在 M9/M10，启动日历确定后应对齐开学季。55% 新增注册激活，每月保留上月活跃用户的 90%。这两个比例用于情景计算，待 cohort 数据校准。Y1 约 5k MAU；Y2/Y3 MAU 由公式算出。90k 注册约为 HESA 286 万在读注册量的 3.1%，仅为规模对照，有效市场及获客仍需验证。澳洲未进入三年情景。[HESA](https://www.hesa.ac.uk/news/27-01-2026/sb273-higher-education-student-statistics)
+- 沿用最近的 AI、Open Banking 和固定预算。新增优惠券每月 £100 加每合格单 £0.10 的运营拨备。储蓄新增 £1,500 一次性接入和每月 £100 的运营拨备。这些是规划估计。

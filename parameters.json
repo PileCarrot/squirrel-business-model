@@ -120,6 +120,72 @@
         "net_cpm_gbp": 2
       },
       "paid_user_month_cost_proxy_gbp": null
+    },
+    "uk_voucher_savings": {
+      "growth": {
+        "year_end_registered": [
+          15000,
+          35000,
+          90000
+        ],
+        "year_end_mau": [
+          5000,
+          12000,
+          35000
+        ],
+        "activation_rate": 0.55,
+        "monthly_active_churn": 0.1,
+        "registration_weights": [
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          0.8,
+          0.8,
+          1.6,
+          1.4,
+          1.1,
+          0.9
+        ]
+      },
+      "costs": {
+        "ai_input_gbp_per_million": 0.19,
+        "ai_output_gbp_per_million": 1.52,
+        "chat_input_tokens": 2000,
+        "chat_output_tokens": 500,
+        "report_input_tokens": 6000,
+        "report_output_tokens": 1000,
+        "bank_gbp_per_paid_user_month": 0.25,
+        "bank_monthly_minimum_gbp": 250,
+        "other_paid_user_month_gbp": 0.15
+      },
+      "bank_referrals": {
+        "start_month": 13,
+        "monthly_eligible_openings_per_mau": 0.003,
+        "gbp_per_eligible_opening": 20
+      },
+      "merchant_ads": {
+        "start_month": null
+      },
+      "paid_user_month_cost_proxy_gbp": null,
+      "vouchers": {
+        "start_month": 10,
+        "approved_orders_per_mau": 0.03,
+        "average_order_gbp": 30,
+        "net_commission_share": 0.06,
+        "cost_per_order_gbp": 0.1,
+        "monthly_ops_gbp": 100
+      },
+      "savings": {
+        "start_month": 16,
+        "funded_plus_share": 0.25,
+        "average_funded_balance_gbp": 750,
+        "annual_net_balance_share": 0.002,
+        "monthly_ops_gbp": 100,
+        "setup_gbp": 1500
+      }
     }
   },
   "bank_referrals": {
