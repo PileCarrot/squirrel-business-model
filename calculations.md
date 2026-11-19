@@ -16,3 +16,10 @@
 ## Innovation Management 对照
 
 2026–27 handbook 的 Group Pitch 示例结构包含 Financials 与 Fundraising Strategy。评分标准要求财务模型能说明收入潜力及可持续性，列出单位经济计算和有来源的多年预测。仓库提供假设溯源、单位贡献公式、三年预测和风险敏感性。融资策略需要完整预算和现金缺口证据支持。[Innovation Management Handbook](https://docs.google.com/document/d/1EV8XTVFZwBI6F1GaOBFk6O0zwOz4g17l/edit)
+
+## 开户返佣与商家广告
+
+- 开户返佣 = 当月合格且可结算的合作开户数 × 每户净返佣。计划窗口 M12/M13，实际情景通过 `bank_referrals.start_month` 启用。当前版本输入每月合格开户数，后续有漏斗数据可由看到开户入口的人数乘合格转化率推导。
+- 平均 DAU = 当月 MAU × DAU/MAU。广告收入 = 平均 DAU × 365.25/12 × 每人日广告机会 × 填充率 × 净 CPM ÷ 1,000。填充率为实际售出曝光占广告机会的比例。使用平均月长以配合 M1–M36 的相对时间轴。
+- 未设启动月的收入渠道暂不入账。明示启动但缺输入时，该渠道及受影响的总额留空。使用通用合作记录时应避免与同一开户返佣或广告重复入账。
+- AI 单次成本 =（输入 token × 输入每百万 token 报价 + 输出 token × 输出每百万 token 报价）÷ 1,000,000。对话与报告分别测量，也可以填已测得的单次成本。

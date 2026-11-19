@@ -16,8 +16,19 @@ def sum_known(values):
     return None if None in values else sum(values)
 
 
+def ai_event_cost(c, event):
+    direct = c[f"ai_{event}_gbp"]
+    if direct is not None:
+        return direct
+    inputs = [c.get(f"{event}_{kind}_tokens") for kind in ("input", "output")]
+    rates = [c.get(f"ai_{kind}_gbp_per_million") for kind in ("input", "output")]
+    if None in [*inputs, *rates]:
+        return None
+    return sum(tokens * rate for tokens, rate in zip(inputs, rates)) / 1_000_000
+
+
 def direct_cost(c, p, tier):
-    inputs = [c["ai_chat_gbp"], c["ai_report_gbp"], c["bank_link_gbp"],
+    inputs = [ai_event_cost(c, "chat"), ai_event_cost(c, "report"), c["bank_link_gbp"],
               c[f"{tier}_average_links"], c["other_paid_user_month_gbp"]]
     if None in inputs:
         return None
@@ -25,6 +36,29 @@ def direct_cost(c, p, tier):
     if not 0 <= links <= p[f"{tier}_account_limit"]:
         raise ValueError(f"{tier} average links must be within the tier limit")
     return chat * p["monthly_ai_chats"] + report * p["weekly_ai_reports"] * 52 / 12 + link * links + other
+
+
+def partnership_drivers(data, month, mau):
+    bank = data.get("bank_referrals", {})
+    ads = data.get("merchant_ads", {})
+    bank_start, ad_start = bank.get("start_month"), ads.get("start_month")
+    openings, commission = bank.get("monthly_eligible_openings"), bank.get("gbp_per_eligible_opening")
+    bank_revenue = 0 if bank_start is None or month < bank_start else None
+    if bank_revenue is None and openings is not None and commission is not None:
+        bank_revenue = openings * commission
+
+    stickiness = ads.get("dau_to_mau")
+    fill_rate = ads.get("fill_rate")
+    for rate in (stickiness, fill_rate):
+        if rate is not None and not 0 <= rate <= 1:
+            raise ValueError("DAU/MAU and ad fill rate must lie between zero and one")
+    dau = None if stickiness is None else mau * stickiness
+    impressions = ads.get("impressions_per_daily_active_user")
+    cpm = ads.get("net_cpm_gbp")
+    ad_revenue = 0 if ad_start is None or month < ad_start else None
+    if ad_revenue is None and None not in (dau, impressions, fill_rate, cpm):
+        ad_revenue = dau * (365.25 / 12) * impressions * fill_rate * cpm / 1000
+    return dau, bank_revenue, ad_revenue
 
 
 def simulate(data, name):
@@ -79,8 +113,9 @@ def simulate(data, name):
                 if contract["start_month"] <= month <= contract["end_month"]:
                     stream = contract["stream"]
                     booked[stream] = booked.get(stream, 0) + contract["monthly_gbp"]
-            partnership = sum(booked.values())
-            revenue = subscription + partnership
+            dau, bank_referral, ads = partnership_drivers(data, month, active)
+            partnership = sum_known([sum(booked.values()), bank_referral, ads])
+            revenue = sum_known([subscription, partnership])
             service = sum_known(n * cost if cost is not None else None
                                 for n, cost in zip(counts, tier_costs))
             fixed = sum(c[k][year - 1] for k in fixed_keys) / 12
@@ -88,17 +123,18 @@ def simulate(data, name):
             partial_cost = sum_known([fixed, service])
             total_cost = sum_known([partial_cost, selling_fee,
                                     None if other is None else other[year - 1] / 12])
-            partial_net = revenue - partial_cost if partial_cost is not None else None
+            partial_net = revenue - partial_cost if None not in (revenue, partial_cost) else None
             cumulative_partial = sum_known([cumulative_partial, partial_net])
-            net = revenue - total_cost if total_cost is not None else None
+            net = revenue - total_cost if None not in (revenue, total_cost) else None
             balance = sum_known([balance, net])
             new_paid = paid - previous_paid * (1 - churn) if churn is not None else None
             cac = ratio(c[fixed_keys[0]][year - 1] / 12, new_paid) if new_paid and new_paid > 0 else None
             blended_margin = sum_known([margins[0] * (1 - mix) if margins[0] is not None else None,
                                         margins[1] * mix if margins[1] is not None else None])
             rows.append(dict(scenario=name, month=month, year=year, registered=total_registered,
-                             mau=active, paid=paid, starter_paid=counts[0], plus_paid=counts[1],
+                             mau=active, estimated_dau=dau, paid=paid, starter_paid=counts[0], plus_paid=counts[1],
                              subscription_gbp=subscription, partnership_gbp=partnership,
+                             bank_referral_gbp=bank_referral, merchant_ads_gbp=ads,
                              revenue_gbp=revenue, fixed_modeled_gbp=fixed, service_gbp=service,
                              selling_fee_gbp=selling_fee, partial_cost_gbp=partial_cost,
                              partial_net_gbp=partial_net, cumulative_partial_net_gbp=cumulative_partial,
@@ -113,7 +149,8 @@ def simulate(data, name):
 
 
 def annualize(rows):
-    sums = ("subscription_gbp", "partnership_gbp", "revenue_gbp", "fixed_modeled_gbp",
+    sums = ("subscription_gbp", "partnership_gbp", "bank_referral_gbp", "merchant_ads_gbp",
+            "revenue_gbp", "fixed_modeled_gbp",
             "service_gbp", "partial_cost_gbp", "partial_net_gbp", "total_cost_gbp", "net_gbp")
     for start in range(0, len(rows), 12):
         months = rows[start:start + 12]

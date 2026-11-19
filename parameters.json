@@ -1,14 +1,103 @@
 {
-  "market": {"uk_he_enrolments_2024_25": 2863180, "addressable_share": null},
-  "product": {"starter_gbp": 3.99, "plus_gbp": 7.99, "starter_account_limit": 2, "plus_account_limit": 5, "monthly_ai_chats": 20, "weekly_ai_reports": 1},
-  "growth": {"year_end_registered": [10000, 35000, 90000], "year_end_mau": [3000, 12000, 35000], "year_end_paid_share": [0.05, 0.06, 0.08], "plus_paid_mix": 0.4, "monthly_paid_churn": null},
-  "costs": {"annual_marketing_gbp": [7750, 10000, 13000], "annual_compliance_gbp": [2500, 3500, 5000], "annual_base_hosting_gbp": [300, 600, 1200], "annual_other_cash_gbp": null, "cash_opening_gbp": null, "ai_chat_gbp": null, "ai_report_gbp": null, "bank_link_gbp": null, "starter_average_links": null, "plus_average_links": null, "other_paid_user_month_gbp": null, "subscription_fee_share": null},
+  "market": {
+    "uk_he_enrolments_2024_25": 2863180,
+    "addressable_share": null
+  },
+  "product": {
+    "starter_gbp": 3.99,
+    "plus_gbp": 7.99,
+    "starter_account_limit": 2,
+    "plus_account_limit": 5,
+    "monthly_ai_chats": 20,
+    "weekly_ai_reports": 1
+  },
+  "growth": {
+    "year_end_registered": [
+      10000,
+      35000,
+      90000
+    ],
+    "year_end_mau": [
+      3000,
+      12000,
+      35000
+    ],
+    "year_end_paid_share": [
+      0.05,
+      0.06,
+      0.08
+    ],
+    "plus_paid_mix": 0.4,
+    "monthly_paid_churn": null
+  },
+  "costs": {
+    "annual_marketing_gbp": [
+      7750,
+      10000,
+      13000
+    ],
+    "annual_compliance_gbp": [
+      2500,
+      3500,
+      5000
+    ],
+    "annual_base_hosting_gbp": [
+      300,
+      600,
+      1200
+    ],
+    "annual_other_cash_gbp": null,
+    "cash_opening_gbp": null,
+    "ai_chat_gbp": null,
+    "ai_report_gbp": null,
+    "bank_link_gbp": null,
+    "starter_average_links": null,
+    "plus_average_links": null,
+    "other_paid_user_month_gbp": null,
+    "subscription_fee_share": null,
+    "ai_input_gbp_per_million": null,
+    "ai_output_gbp_per_million": null,
+    "chat_input_tokens": null,
+    "chat_output_tokens": null,
+    "report_input_tokens": null,
+    "report_output_tokens": null
+  },
   "partnerships": [],
   "scenarios": {
-    "downside": {"paid_share_override": 0.02, "paid_user_month_cost_proxy_gbp": 1.0},
-    "base_draft": {"paid_share_override": null, "paid_user_month_cost_proxy_gbp": 0.6},
-    "upside": {"paid_share_override": 0.10, "paid_user_month_cost_proxy_gbp": 0.3},
-    "plus_699": {"plus_price_override": 6.99, "paid_user_month_cost_proxy_gbp": 0.6},
-    "quoted_costs": {"paid_user_month_cost_proxy_gbp": null}
+    "downside": {
+      "paid_share_override": 0.02,
+      "paid_user_month_cost_proxy_gbp": 1.0
+    },
+    "base_draft": {
+      "paid_share_override": null,
+      "paid_user_month_cost_proxy_gbp": 0.6
+    },
+    "upside": {
+      "paid_share_override": 0.1,
+      "paid_user_month_cost_proxy_gbp": 0.3
+    },
+    "plus_699": {
+      "plus_price_override": 6.99,
+      "paid_user_month_cost_proxy_gbp": 0.6
+    },
+    "quoted_costs": {
+      "paid_user_month_cost_proxy_gbp": null
+    }
+  },
+  "bank_referrals": {
+    "start_month_options": [
+      12,
+      13
+    ],
+    "start_month": null,
+    "monthly_eligible_openings": null,
+    "gbp_per_eligible_opening": null
+  },
+  "merchant_ads": {
+    "start_month": null,
+    "dau_to_mau": null,
+    "impressions_per_daily_active_user": null,
+    "fill_rate": null,
+    "net_cpm_gbp": null
   }
 }
