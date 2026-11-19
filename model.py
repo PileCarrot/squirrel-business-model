@@ -28,6 +28,11 @@ def ai_event_cost(c, event):
 
 
 def direct_cost(c, p, tier):
+    per_user = c.get("bank_gbp_per_paid_user_month")
+    if per_user is not None:
+        chat, report, other = ai_event_cost(c, "chat"), ai_event_cost(c, "report"), c["other_paid_user_month_gbp"]
+        return sum_known([per_user, other, None if chat is None else chat * p["monthly_ai_chats"],
+                          None if report is None else report * p["weekly_ai_reports"] * 52 / 12])
     inputs = [ai_event_cost(c, "chat"), ai_event_cost(c, "report"), c["bank_link_gbp"],
               c[f"{tier}_average_links"], c["other_paid_user_month_gbp"]]
     if None in inputs:
@@ -43,6 +48,8 @@ def partnership_drivers(data, month, mau):
     ads = data.get("merchant_ads", {})
     bank_start, ad_start = bank.get("start_month"), ads.get("start_month")
     openings, commission = bank.get("monthly_eligible_openings"), bank.get("gbp_per_eligible_opening")
+    if openings is None and bank.get("monthly_eligible_openings_per_mau") is not None:
+        openings = mau * bank["monthly_eligible_openings_per_mau"]
     bank_revenue = 0 if bank_start is None or month < bank_start else None
     if bank_revenue is None and openings is not None and commission is not None:
         bank_revenue = openings * commission
@@ -64,6 +71,10 @@ def partnership_drivers(data, month, mau):
 def simulate(data, name):
     p, g, c = (data[key] for key in ("product", "growth", "costs"))
     s = data["scenarios"][name]
+    g = {**g, **s.get("growth", {})}
+    c = {**c, **s.get("costs", {})}
+    data = {**data, **{key: {**data.get(key, {}), **s.get(key, {})}
+                       for key in ("bank_referrals", "merchant_ads")}}
     mix = g["plus_paid_mix"]
     shares = list(g["year_end_paid_share"])
     fixed_keys = ("annual_marketing_gbp", "annual_compliance_gbp", "annual_base_hosting_gbp")
@@ -120,7 +131,9 @@ def simulate(data, name):
                                 for n, cost in zip(counts, tier_costs))
             fixed = sum(c[k][year - 1] for k in fixed_keys) / 12
             selling_fee = None if fee is None else subscription * fee
-            partial_cost = sum_known([fixed, service])
+            minimum_top_up = max(0, c.get("bank_monthly_minimum_gbp", 0)
+                                 - paid * c.get("bank_gbp_per_paid_user_month", 0)) if proxy is None else 0
+            partial_cost = sum_known([fixed, service, minimum_top_up])
             total_cost = sum_known([partial_cost, selling_fee,
                                     None if other is None else other[year - 1] / 12])
             partial_net = revenue - partial_cost if None not in (revenue, partial_cost) else None
@@ -136,7 +149,8 @@ def simulate(data, name):
                              subscription_gbp=subscription, partnership_gbp=partnership,
                              bank_referral_gbp=bank_referral, merchant_ads_gbp=ads,
                              revenue_gbp=revenue, fixed_modeled_gbp=fixed, service_gbp=service,
-                             selling_fee_gbp=selling_fee, partial_cost_gbp=partial_cost,
+                             selling_fee_gbp=selling_fee, bank_minimum_top_up_gbp=minimum_top_up,
+                             partial_cost_gbp=partial_cost,
                              partial_net_gbp=partial_net, cumulative_partial_net_gbp=cumulative_partial,
                              total_cost_gbp=total_cost, net_gbp=net, cash_balance_gbp=balance,
                              starter_modeled_margin_gbp=margins[0], plus_modeled_margin_gbp=margins[1],
@@ -151,7 +165,7 @@ def simulate(data, name):
 def annualize(rows):
     sums = ("subscription_gbp", "partnership_gbp", "bank_referral_gbp", "merchant_ads_gbp",
             "revenue_gbp", "fixed_modeled_gbp",
-            "service_gbp", "partial_cost_gbp", "partial_net_gbp", "total_cost_gbp", "net_gbp")
+            "service_gbp", "bank_minimum_top_up_gbp", "partial_cost_gbp", "partial_net_gbp", "total_cost_gbp", "net_gbp")
     for start in range(0, len(rows), 12):
         months = rows[start:start + 12]
         end = months[-1]

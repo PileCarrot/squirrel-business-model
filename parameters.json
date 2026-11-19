@@ -82,6 +82,44 @@
     },
     "quoted_costs": {
       "paid_user_month_cost_proxy_gbp": null
+    },
+    "optimistic_launch": {
+      "growth": {
+        "year_end_registered": [
+          15000,
+          35000,
+          90000
+        ],
+        "year_end_mau": [
+          5000,
+          12000,
+          35000
+        ]
+      },
+      "costs": {
+        "ai_input_gbp_per_million": 0.19,
+        "ai_output_gbp_per_million": 1.52,
+        "chat_input_tokens": 2000,
+        "chat_output_tokens": 500,
+        "report_input_tokens": 6000,
+        "report_output_tokens": 1000,
+        "bank_gbp_per_paid_user_month": 0.25,
+        "bank_monthly_minimum_gbp": 250,
+        "other_paid_user_month_gbp": 0.15
+      },
+      "bank_referrals": {
+        "start_month": 13,
+        "monthly_eligible_openings_per_mau": 0.003,
+        "gbp_per_eligible_opening": 20
+      },
+      "merchant_ads": {
+        "start_month": 10,
+        "dau_to_mau": 0.25,
+        "impressions_per_daily_active_user": 1,
+        "fill_rate": 0.5,
+        "net_cpm_gbp": 2
+      },
+      "paid_user_month_cost_proxy_gbp": null
     }
   },
   "bank_referrals": {
