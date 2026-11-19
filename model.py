@@ -8,7 +8,7 @@ ROOT = Path(__file__).resolve().parent
 
 
 def ratio(numerator, denominator):
-    return numerator / denominator if denominator else None
+    return numerator / denominator if numerator is not None and denominator else None
 
 
 def sum_known(values):
@@ -17,7 +17,7 @@ def sum_known(values):
 
 
 def ai_event_cost(c, event):
-    direct = c[f"ai_{event}_gbp"]
+    direct = c.get(f"ai_{event}_gbp")
     if direct is not None:
         return direct
     inputs = [c.get(f"{event}_{kind}_tokens") for kind in ("input", "output")]
@@ -27,20 +27,26 @@ def ai_event_cost(c, event):
     return sum(tokens * rate for tokens, rate in zip(inputs, rates)) / 1_000_000
 
 
-def direct_cost(c, p, tier):
+def bank_unit_cost(c, p, tier):
     per_user = c.get("bank_gbp_per_paid_user_month")
     if per_user is not None:
-        chat, report, other = ai_event_cost(c, "chat"), ai_event_cost(c, "report"), c["other_paid_user_month_gbp"]
-        return sum_known([per_user, other, None if chat is None else chat * p["monthly_ai_chats"],
-                          None if report is None else report * p["weekly_ai_reports"] * 52 / 12])
-    inputs = [ai_event_cost(c, "chat"), ai_event_cost(c, "report"), c["bank_link_gbp"],
-              c[f"{tier}_average_links"], c["other_paid_user_month_gbp"]]
-    if None in inputs:
-        return None
-    chat, report, link, links, other = inputs
-    if not 0 <= links <= p[f"{tier}_account_limit"]:
+        return per_user
+    rate, links = c.get("bank_link_gbp"), c.get(f"{tier}_average_links")
+    if links is not None and not 0 <= links <= p[f"{tier}_account_limit"]:
         raise ValueError(f"{tier} average links must be within the tier limit")
-    return chat * p["monthly_ai_chats"] + report * p["weekly_ai_reports"] * 52 / 12 + link * links + other
+    return None if None in (rate, links) else rate * links
+
+
+def direct_cost(c, p, bank_cost):
+    chat, report = ai_event_cost(c, "chat"), ai_event_cost(c, "report")
+    return sum_known([bank_cost, c.get("other_paid_user_month_gbp"),
+                      None if chat is None else chat * p["monthly_ai_chats"],
+                      None if report is None else report * p["weekly_ai_reports"] * 52 / 12])
+
+
+def tier_total(counts, costs):
+    return sum_known(0 if n == 0 else None if cost is None else n * cost
+                     for n, cost in zip(counts, costs))
 
 
 def partnership_drivers(data, month, mau):
@@ -72,11 +78,11 @@ def commerce_lines(scenario, month, mau, plus_paid):
     v = scenario.get("vouchers")
     h = scenario.get("savings")
     orders = voucher_revenue = savers = balances = savings_revenue = operating_cost = 0
-    if v and month >= v["start_month"]:
+    if v and v.get("start_month") is not None and month >= v["start_month"]:
         orders = mau * v["approved_orders_per_mau"]
         voucher_revenue = orders * v["average_order_gbp"] * v["net_commission_share"]
         operating_cost = v["monthly_ops_gbp"] + orders * v["cost_per_order_gbp"]
-    if h and month >= h["start_month"]:
+    if h and h.get("start_month") is not None and month >= h["start_month"]:
         savers = plus_paid * h["funded_plus_share"]
         balances = savers * h["average_funded_balance_gbp"]
         savings_revenue = balances * h["annual_net_balance_share"] / 12
@@ -92,7 +98,20 @@ def simulate(data, name):
     g = {**g, **s.get("growth", {})}
     c = {**c, **s.get("costs", {})}
     data = {**data, **{key: {**data.get(key, {}), **s.get(key, {})}
-                       for key in ("bank_referrals", "merchant_ads")}}
+                       for key in ("bank_referrals", "merchant_ads", "vouchers", "savings")}}
+    campus = s.get("campus")
+    contracts = data.get("partnerships", [])
+    aliases = {"bank_referral": "bank_referrals", "voucher": "vouchers",
+               "university_license": "campus", "university_licence": "campus",
+               "university": "campus", "savings_balance_share": "savings"}
+    driver_starts = {key: data[key].get("start_month")
+                     for key in ("bank_referrals", "merchant_ads", "vouchers", "savings")}
+    driver_starts["campus"] = min(campus["launch_months"]) if campus else None
+    for contract in contracts:
+        stream = contract["stream"].strip().lower().replace("-", "_").replace(" ", "_")
+        start = driver_starts.get(aliases.get(stream, stream))
+        if start is not None and contract["end_month"] >= start:
+            raise ValueError(f"Manual contract overlaps the modelled revenue stream: {stream}")
     mix = g["plus_paid_mix"]
     shares = list(g["year_end_paid_share"])
     fixed_keys = ("annual_marketing_gbp", "annual_compliance_gbp", "annual_base_hosting_gbp")
@@ -108,22 +127,26 @@ def simulate(data, name):
         shares = [override] * years
     churn = g["monthly_paid_churn"]
     fee = c["subscription_fee_share"]
-    for rate in [mix, *shares, churn, fee]:
+    vat = c.get("vat_rate", 0.2)
+    for rate in [mix, *shares, churn, fee, vat]:
         if rate is not None and not 0 <= rate <= 1:
             raise ValueError("Rates must lie between zero and one")
     prices = (p["starter_gbp"], s.get("plus_price_override", p["plus_gbp"]))
+    net_prices = tuple(price / (1 + vat) for price in prices) if vat is not None else (None, None)
     proxy = s.get("paid_user_month_cost_proxy_gbp")
+    bank_costs = tuple(bank_unit_cost(c, p, tier) for tier in ("starter", "plus")) if proxy is None else (None, None)
     tier_costs = (proxy, proxy) if proxy is not None else tuple(
-        direct_cost(c, p, tier) for tier in ("starter", "plus")
+        direct_cost(c, p, bank_cost) for bank_cost in bank_costs
     )
     # A scenario proxy covers modeled direct service costs. Selling fees are independent.
-    margins = [None if cost is None else price * (1 - (fee or 0)) - cost
-               for price, cost in zip(prices, tier_costs)]
+    margins = [None if None in (cost, price) else price * (1 - (fee or 0)) - cost
+               for price, cost in zip(net_prices, tier_costs)]
     balance = c["cash_opening_gbp"]
     previous_mau = previous_registered = previous_paid = 0
     cumulative_partial = 0
     rows = []
     active_stock = 0
+    campus_active = campus_registered = live_schools = 0
     weights = g.get("registration_weights")
     if weights is not None:
         if len(weights) != 12 or min(weights) < 0 or sum(weights) <= 0:
@@ -147,27 +170,49 @@ def simulate(data, name):
                 active_stock = active_stock * (1 - g["monthly_active_churn"]) + new_registrations * g["activation_rate"]
                 active = active_stock
             prior_share = shares[year - 2] if year > 1 else share
-            paid = active * (prior_share + weight * (share - prior_share))
+            paid_share = prior_share + weight * (share - prior_share)
+            paid = active * paid_share
             counts = (paid * (1 - mix), paid * mix)
-            subscription = sum(n * price for n, price in zip(counts, prices))
+            license_revenue = campus_cost = campus_upgrades = 0
+            campus_active *= 1 - g.get("monthly_active_churn", 0)
+            if campus:
+                if month == campus["launch_months"][year - 1]:
+                    next_schools = campus["live_schools"][year - 1]
+                    campus_cost = max(0, next_schools - live_schools) * campus["setup_per_new_school_gbp"]
+                    live_schools = next_schools
+                    campus_new = live_schools * campus["billed_seats_per_school"] * campus["incremental_registration_share"]
+                    campus_registered += campus_new
+                    campus_active += campus_new * g["activation_rate"]
+                license_revenue = live_schools * campus["billed_seats_per_school"] * campus["annual_gbp_per_seat"] / 12
+                campus_cost += live_schools * campus["annual_ops_per_school_gbp"] / 12
+                campus_upgrades = campus_active * paid_share * mix
+            active += campus_active
+            total_registered += campus_registered
+            subscription_gross = sum(n * price for n, price in zip(counts, prices))
+            subscription_gross += campus_upgrades * (prices[1] - prices[0])
+            subscription = subscription_gross / (1 + vat) if vat is not None else None
             booked = {}
-            for contract in data["partnerships"]:
+            for contract in contracts:
                 if contract["start_month"] <= month <= contract["end_month"]:
                     stream = contract["stream"]
                     booked[stream] = booked.get(stream, 0) + contract["monthly_gbp"]
             dau, bank_referral, ads = partnership_drivers(data, month, active)
-            orders, voucher, savers, balances, savings, commerce_cost = commerce_lines(s, month, active, counts[1])
-            partnership = sum_known([sum(booked.values()), bank_referral, ads, voucher, savings])
+            orders, voucher, savers, balances, savings, commerce_cost = commerce_lines(data, month, active, counts[1] + campus_upgrades)
+            partnership = sum_known([sum(booked.values()), bank_referral, ads, voucher, savings, license_revenue])
             revenue = sum_known([subscription, partnership])
-            service = sum_known(n * cost if cost is not None else None
-                                for n, cost in zip(counts, tier_costs))
+            service_counts = (counts[0] + campus_active - campus_upgrades, counts[1] + campus_upgrades)
+            service = tier_total(service_counts, tier_costs)
             fixed = sum(c[k][year - 1] for k in fixed_keys) / 12
-            selling_fee = None if fee is None else subscription * fee
-            minimum_top_up = max(0, c.get("bank_monthly_minimum_gbp", 0)
-                                 - paid * c.get("bank_gbp_per_paid_user_month", 0)) if proxy is None else 0
-            partial_cost = sum_known([fixed, service, minimum_top_up, commerce_cost])
-            total_cost = sum_known([partial_cost, selling_fee,
-                                    None if other is None else other[year - 1] / 12])
+            selling_fee = None if fee is None or subscription is None else subscription * fee
+            bank_spend = tier_total(service_counts, bank_costs) if proxy is None else None
+            bank_minimum = c.get("bank_monthly_minimum_gbp", 0)
+            minimum_top_up = 0
+            if proxy is None and bank_minimum != 0:
+                minimum_top_up = None if None in (bank_minimum, bank_spend) else max(0, bank_minimum - bank_spend)
+            partial_cost = sum_known([fixed, service, minimum_top_up, commerce_cost,
+                                      campus_cost, selling_fee if selling_fee is not None else 0])
+            other_cash = None if other is None else other[year - 1] / 12
+            total_cost = sum_known([partial_cost, other_cash]) if selling_fee is not None else None
             partial_net = revenue - partial_cost if None not in (revenue, partial_cost) else None
             cumulative_partial = sum_known([cumulative_partial, partial_net])
             net = revenue - total_cost if None not in (revenue, total_cost) else None
@@ -177,19 +222,25 @@ def simulate(data, name):
             blended_margin = sum_known([margins[0] * (1 - mix) if margins[0] is not None else None,
                                         margins[1] * mix if margins[1] is not None else None])
             rows.append(dict(scenario=name, month=month, year=year, registered=total_registered,
-                             mau=active, estimated_dau=dau, paid=paid, starter_paid=counts[0], plus_paid=counts[1],
-                             subscription_gbp=subscription, partnership_gbp=partnership,
+                             mau=active, estimated_dau=dau, paid=paid + campus_upgrades, starter_paid=counts[0], plus_paid=counts[1] + campus_upgrades,
+                             campus_schools=live_schools, campus_mau=campus_active,
+                             campus_registered=campus_registered, campus_plus_upgrades=campus_upgrades,
+                             university_license_gbp=license_revenue, campus_cost_gbp=campus_cost,
+                             subscription_gross_gbp=subscription_gross, subscription_gbp=subscription, partnership_gbp=partnership,
                              bank_referral_gbp=bank_referral, merchant_ads_gbp=ads,
                              voucher_orders=orders, voucher_gbp=voucher, funded_savers=savers,
                              savings_balance_gbp=balances, savings_gbp=savings,
                              commerce_operating_cost_gbp=commerce_cost,
                              revenue_gbp=revenue, fixed_modeled_gbp=fixed, service_gbp=service,
-                             selling_fee_gbp=selling_fee, bank_minimum_top_up_gbp=minimum_top_up,
+                             selling_fee_gbp=selling_fee, other_cash_gbp=other_cash,
+                             bank_usage_gbp=bank_spend, bank_minimum_top_up_gbp=minimum_top_up,
+                             noncampus_mau_anchor=mau if period == 12 else None,
+                             noncampus_mau_vs_anchor=active - campus_active - mau if period == 12 else None,
                              partial_cost_gbp=partial_cost,
                              partial_net_gbp=partial_net, cumulative_partial_net_gbp=cumulative_partial,
                              total_cost_gbp=total_cost, net_gbp=net, cash_balance_gbp=balance,
                              starter_modeled_margin_gbp=margins[0], plus_modeled_margin_gbp=margins[1],
-                             modeled_paid_cac_gbp=cac,
+                             implied_paid_cac_at_target_gbp=cac,
                              modeled_contribution_ltv_gbp=ratio(blended_margin, churn)
                              if blended_margin is not None else None))
             previous_paid = paid
@@ -198,14 +249,15 @@ def simulate(data, name):
 
 
 def annualize(rows):
-    sums = ("voucher_gbp", "savings_gbp", "commerce_operating_cost_gbp", "subscription_gbp", "partnership_gbp", "bank_referral_gbp", "merchant_ads_gbp",
+    sums = ("subscription_gross_gbp", "selling_fee_gbp", "other_cash_gbp", "bank_usage_gbp", "university_license_gbp", "campus_cost_gbp", "voucher_gbp", "savings_gbp", "commerce_operating_cost_gbp", "subscription_gbp", "partnership_gbp", "bank_referral_gbp", "merchant_ads_gbp",
             "revenue_gbp", "fixed_modeled_gbp",
             "service_gbp", "bank_minimum_top_up_gbp", "partial_cost_gbp", "partial_net_gbp", "total_cost_gbp", "net_gbp")
     for start in range(0, len(rows), 12):
         months = rows[start:start + 12]
         end = months[-1]
         annual = {key: end[key] for key in ("scenario", "year", "registered", "mau", "paid",
-                                           "cumulative_partial_net_gbp", "cash_balance_gbp")}
+                                           "cumulative_partial_net_gbp", "cash_balance_gbp",
+                                           "noncampus_mau_anchor", "noncampus_mau_vs_anchor")}
         annual.update({key: sum_known(row[key] for row in months) for key in sums})
         cost = annual["partial_cost_gbp"]
         annual["partial_cost_to_revenue"] = ratio(cost, annual["revenue_gbp"]) if cost is not None else None
