@@ -22,4 +22,4 @@ python3 model.py
 
 ## 最新高校扩张情景
 
-新版使用 `uk_campus_expansion`。运行上述命令后，在两个 CSV 的 `scenario` 列筛选该名称。旧版 `uk_campus_licensing` 可用于复算对照。模型输入来自 [POTI 财务核对表的高校扩张情景](https://docs.google.com/spreadsheets/d/1K1Zop2Rb4Rna9Woqd7Wnvmsa0LfNmP0upHOTvFkPrfE/edit#gid=730224915&range=A109:I117)。
+融资规划版使用 `uk_eu_investor_growth`。运行上述命令后，在两个 CSV 的 `scenario` 列筛选该名称。`uk_campus_expansion` 与 `uk_campus_licensing` 保留为对照。模型输入来自 [POTI 财务核对表的高校扩张情景](https://docs.google.com/spreadsheets/d/1K1Zop2Rb4Rna9Woqd7Wnvmsa0LfNmP0upHOTvFkPrfE/edit#gid=730224915&range=A109:I117)。
