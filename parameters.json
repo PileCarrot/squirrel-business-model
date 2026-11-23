@@ -371,9 +371,9 @@
     "uk_eu_investor_growth": {
       "growth": {
         "year_end_registered": [
-          15000,
-          45000,
-          237600
+          24590.909090909092,
+          81900,
+          238200
         ],
         "year_end_mau": [
           5000,
@@ -408,27 +408,31 @@
         "bank_monthly_minimum_gbp": 250,
         "other_paid_user_month_gbp": 0.15,
         "annual_compliance_gbp": [
-          6347,
-          5107,
-          6287
+          4047,
+          3707,
+          3987
         ]
       },
       "bank_referrals": {
         "start_month": 13,
         "monthly_eligible_openings_per_mau": 0.003,
-        "gbp_per_eligible_opening": 20
+        "gbp_per_eligible_opening": 20,
+        "monthly_eligible_campus_openings_per_mau": 0.004
       },
       "merchant_ads": {
-        "start_month": null
+        "start_month": 10,
+        "impressions_per_monthly_free_user": 4,
+        "fill_rate": 0.6,
+        "net_cpm_gbp": 3
       },
       "paid_user_month_cost_proxy_gbp": null,
       "vouchers": {
         "start_month": 10,
-        "approved_orders_per_mau": 0.03,
-        "average_order_gbp": 30,
-        "net_commission_share": 0.06,
-        "cost_per_order_gbp": 0.1,
-        "monthly_ops_gbp": 100
+        "approved_orders_per_mau": 0.175,
+        "average_order_gbp": 10,
+        "net_commission_share": 0.04,
+        "cost_per_order_gbp": 0.03,
+        "monthly_ops_gbp": 50
       },
       "savings": {
         "start_month": 16,
@@ -445,30 +449,30 @@
           25
         ],
         "live_schools": [
-          1,
-          5,
-          16
+          3,
+          8,
+          14
         ],
         "annual_ops_per_school_gbp": 1500,
         "setup_per_new_school_gbp": 1000,
         "annual_contract_value_gbp": [
-          8000,
-          57000,
-          304000
+          24000,
+          81000,
+          288000
         ],
         "eligible_students": [
-          1000,
-          24000,
-          208000
+          3000,
+          27000,
+          206000
         ],
         "first_year_registration_share": 0.3,
         "average_mau_share": 0.1
       },
       "registration_targets_by_market": {
         "uk_noncampus": [
-          15000,
-          45000,
-          158800
+          24590.909090909092,
+          81900,
+          159400
         ],
         "eu_noncampus": [
           0,
@@ -476,14 +480,57 @@
           78800
         ],
         "uk_campus": [
-          136.36363636363637,
-          7200,
-          61200
+          409.0909090909091,
+          8100,
+          60600
         ],
         "eu_campus": [
           0,
           0,
           1200
+        ]
+      },
+      "annual_finance": {
+        "salary_headcount": [
+          2,
+          3,
+          4
+        ],
+        "annual_salary_per_person_gbp": [
+          20000,
+          25000,
+          30000
+        ],
+        "weekly_paid_hours": [
+          28,
+          35,
+          37.5
+        ],
+        "employer_ni_rate": 0.15,
+        "employer_ni_threshold_gbp": 5000,
+        "employment_allowance_gbp": 10500,
+        "pension_lower_gbp": 6240,
+        "pension_upper_gbp": 50270,
+        "employer_pension_rate": 0.03,
+        "incorporation_and_setup_gbp": [
+          600,
+          0,
+          0
+        ],
+        "confirmation_statement_gbp": [
+          0,
+          50,
+          50
+        ],
+        "corporation_tax_small_rate": 0.19,
+        "corporation_tax_small_threshold_gbp": 50000,
+        "corporation_tax_main_rate": 0.25,
+        "corporation_tax_upper_threshold_gbp": 250000,
+        "corporation_tax_marginal_fraction": 0.015,
+        "competitive_grant_upside_gbp": [
+          0,
+          25000,
+          0
         ]
       }
     }

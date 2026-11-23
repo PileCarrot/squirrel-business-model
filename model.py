@@ -49,13 +49,15 @@ def tier_total(counts, costs):
                      for n, cost in zip(counts, costs))
 
 
-def partnership_drivers(data, month, mau):
+def partnership_drivers(data, month, mau, campus_mau=0, free_mau=None):
     bank = data.get("bank_referrals", {})
     ads = data.get("merchant_ads", {})
     bank_start, ad_start = bank.get("start_month"), ads.get("start_month")
     openings, commission = bank.get("monthly_eligible_openings"), bank.get("gbp_per_eligible_opening")
-    if openings is None and bank.get("monthly_eligible_openings_per_mau") is not None:
-        openings = mau * bank["monthly_eligible_openings_per_mau"]
+    noncampus_rate = bank.get("monthly_eligible_openings_per_mau")
+    campus_rate = bank.get("monthly_eligible_campus_openings_per_mau", noncampus_rate)
+    if openings is None and None not in (noncampus_rate, campus_rate):
+        openings = (mau - campus_mau) * noncampus_rate + campus_mau * campus_rate
     bank_revenue = 0 if bank_start is None or month < bank_start else None
     if bank_revenue is None and openings is not None and commission is not None:
         bank_revenue = openings * commission
@@ -69,8 +71,13 @@ def partnership_drivers(data, month, mau):
     impressions = ads.get("impressions_per_daily_active_user")
     cpm = ads.get("net_cpm_gbp")
     ad_revenue = 0 if ad_start is None or month < ad_start else None
-    if ad_revenue is None and None not in (dau, impressions, fill_rate, cpm):
-        ad_revenue = dau * (365.25 / 12) * impressions * fill_rate * cpm / 1000
+    free_user_impressions = ads.get("impressions_per_monthly_free_user")
+    if ad_revenue is None:
+        if free_user_impressions is not None:
+            if None not in (free_mau, fill_rate, cpm):
+                ad_revenue = free_mau * free_user_impressions * fill_rate * cpm / 1000
+        elif None not in (dau, impressions, fill_rate, cpm):
+            ad_revenue = dau * (365.25 / 12) * impressions * fill_rate * cpm / 1000
     return dau, bank_revenue, ad_revenue
 
 
@@ -103,7 +110,8 @@ def simulate(data, name):
     contracts = data.get("partnerships", [])
     aliases = {"bank_referral": "bank_referrals", "voucher": "vouchers",
                "university_license": "campus", "university_licence": "campus",
-               "university": "campus", "savings_balance_share": "savings"}
+               "university": "campus", "savings_balance_share": "savings",
+               "app_open_ads": "merchant_ads", "coupon_commission": "vouchers"}
     driver_starts = {key: data[key].get("start_month")
                      for key in ("bank_referrals", "merchant_ads", "vouchers", "savings")}
     driver_starts["campus"] = min(campus["launch_months"]) if campus else None
@@ -215,7 +223,10 @@ def simulate(data, name):
                 if contract["start_month"] <= month <= contract["end_month"]:
                     stream = contract["stream"]
                     booked[stream] = booked.get(stream, 0) + contract["monthly_gbp"]
-            dau, bank_referral, ads = partnership_drivers(data, month, active)
+            free_noncampus_mau = max(0, active - campus_active - paid)
+            dau, bank_referral, ads = partnership_drivers(
+                data, month, active, campus_active, free_noncampus_mau
+            )
             orders, voucher, savers, balances, savings, commerce_cost = commerce_lines(data, month, active, counts[1] + campus_upgrades)
             partnership = sum_known([sum(booked.values()), bank_referral, ads, voucher, savings, license_revenue])
             revenue = sum_known([subscription, partnership])
@@ -267,10 +278,20 @@ def simulate(data, name):
     return rows
 
 
-def annualize(rows):
+def corporation_tax(profit, finance):
+    if profit <= finance["corporation_tax_small_threshold_gbp"]:
+        return profit * finance["corporation_tax_small_rate"]
+    relief = max(0, finance["corporation_tax_upper_threshold_gbp"] - profit)
+    return (profit * finance["corporation_tax_main_rate"]
+            - relief * finance["corporation_tax_marginal_fraction"])
+
+
+def annualize(rows, finance=None):
     sums = ("subscription_gross_gbp", "selling_fee_gbp", "other_cash_gbp", "bank_usage_gbp", "university_license_gbp", "campus_cost_gbp", "voucher_gbp", "savings_gbp", "commerce_operating_cost_gbp", "subscription_gbp", "partnership_gbp", "bank_referral_gbp", "merchant_ads_gbp",
             "revenue_gbp", "fixed_modeled_gbp",
             "service_gbp", "bank_minimum_top_up_gbp", "partial_cost_gbp", "partial_net_gbp", "total_cost_gbp", "net_gbp")
+    losses = [0, 0]
+    cumulative_after_tax = [0, 0]
     for start in range(0, len(rows), 12):
         months = rows[start:start + 12]
         end = months[-1]
@@ -280,12 +301,54 @@ def annualize(rows):
         annual.update({key: sum_known(row[key] for row in months) for key in sums})
         cost = annual["partial_cost_gbp"]
         annual["partial_cost_to_revenue"] = ratio(cost, annual["revenue_gbp"]) if cost is not None else None
+        if finance is not None:
+            year = end["year"] - 1
+            headcount = finance["salary_headcount"][year]
+            salary = finance["annual_salary_per_person_gbp"][year]
+            gross_pay = headcount * salary
+            gross_ni = headcount * max(0, salary - finance["employer_ni_threshold_gbp"]) * finance["employer_ni_rate"]
+            allowance = min(gross_ni, finance["employment_allowance_gbp"])
+            pensionable = max(0, min(salary, finance["pension_upper_gbp"]) - finance["pension_lower_gbp"])
+            pension = headcount * pensionable * finance["employer_pension_rate"]
+            payroll = gross_pay + gross_ni - allowance + pension
+            setup = finance["incorporation_and_setup_gbp"][year]
+            filing = finance["confirmation_statement_gbp"][year]
+            pretax = sum_known([annual["partial_net_gbp"], -payroll, -setup, -filing])
+            if annual["other_cash_gbp"] is not None:
+                pretax = sum_known([pretax, -annual["other_cash_gbp"]])
+            grant = finance["competitive_grant_upside_gbp"][year]
+            annual.update(
+                salary_headcount=headcount,
+                annual_salary_per_person_gbp=salary,
+                weekly_paid_hours=finance["weekly_paid_hours"][year],
+                payroll_gross_gbp=gross_pay,
+                employer_ni_before_allowance_gbp=gross_ni,
+                employment_allowance_gbp=allowance,
+                employer_pension_gbp=pension,
+                payroll_cost_gbp=payroll,
+                incorporation_and_setup_gbp=setup,
+                confirmation_statement_gbp=filing,
+                pretax_after_payroll_and_setup_gbp=pretax,
+                competitive_grant_upside_gbp=grant,
+            )
+            for i, (grant_amount, suffix) in enumerate(((0, ""), (grant, "_with_grant"))):
+                taxable_before_losses = sum_known([pretax, setup, grant_amount])
+                taxable = sum_known([taxable_before_losses, None if losses[i] is None else -losses[i]])
+                tax = None if taxable is None else corporation_tax(max(0, taxable), finance)
+                losses[i] = None if taxable is None else max(0, -taxable)
+                after_tax = sum_known([pretax, grant_amount, None if tax is None else -tax])
+                cumulative_after_tax[i] = sum_known([cumulative_after_tax[i], after_tax])
+                annual[f"tax_losses_carried_forward{suffix}_gbp"] = losses[i]
+                annual[f"corporation_tax{suffix}_gbp"] = tax
+                annual[f"after_tax_result{suffix}_gbp"] = after_tax
+                annual[f"cumulative_after_tax_result{suffix}_gbp"] = cumulative_after_tax[i]
         yield annual
 
 
 def write_csv(path, rows):
     with path.open("w", encoding="utf-8", newline="") as file:
-        writer = csv.DictWriter(file, fieldnames=list(rows[0]))
+        fields = dict.fromkeys(key for row in rows for key in row)
+        writer = csv.DictWriter(file, fieldnames=list(fields))
         writer.writeheader()
         writer.writerows({k: round(v, 6) if isinstance(v, float) else v
                           for k, v in row.items()} for row in rows)
@@ -301,7 +364,7 @@ def main():
     for name in data["scenarios"]:
         rows = simulate(data, name)
         monthly.extend(rows)
-        annual.extend(annualize(rows))
+        annual.extend(annualize(rows, data["scenarios"][name].get("annual_finance")))
     args.out.mkdir(parents=True, exist_ok=True)
     write_csv(args.out / "monthly.csv", monthly)
     write_csv(args.out / "annual.csv", annual)

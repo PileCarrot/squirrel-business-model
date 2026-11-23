@@ -20,6 +20,8 @@ python3 model.py
 
 更新假设时同步记录单位、分母、来源和证据状态，再重跑结果。当前适合展示驱动因素与敏感性。完整成本、融资额与真实留存尚未验证。
 
-## 最新高校扩张情景
+## 最新融资规划情景
 
-融资规划版使用 `uk_eu_investor_growth`。运行上述命令后，在两个 CSV 的 `scenario` 列筛选该名称。`uk_campus_expansion` 与 `uk_campus_licensing` 保留为对照。模型输入来自 [POTI 财务核对表的高校扩张情景](https://docs.google.com/spreadsheets/d/1K1Zop2Rb4Rna9Woqd7Wnvmsa0LfNmP0upHOTvFkPrfE/edit#gid=730224915&range=A109:I117)。
+融资规划版使用 `uk_eu_investor_growth`。运行上述命令后，在两个 CSV 的 `scenario` 列筛选该名称。月度输出展示经营收入、已建模经营支出及其差额。年度输出另列工资、雇主 NI、养老金、公司设立和申报费用、公司所得税，以及有无竞争性拨款的税后结余。税后结余按年度确认，实际现金流还取决于收付时间和期初资金。
+
+`uk_campus_expansion` 与 `uk_campus_licensing` 保留作历史对照。当前口径见 [POTI 财务核对表](https://docs.google.com/spreadsheets/d/1K1Zop2Rb4Rna9Woqd7Wnvmsa0LfNmP0upHOTvFkPrfE/edit) 的「三年收支」「逐项核对」及「工资税费与补贴」。
