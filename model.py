@@ -147,6 +147,9 @@ def simulate(data, name):
     rows = []
     active_stock = 0
     campus_active = campus_registered = live_schools = 0
+    campus_cohorts = []
+    campus_eligibility = 0
+    campus_contract_value = 0
     weights = g.get("registration_weights")
     if weights is not None:
         if len(weights) != 12 or min(weights) < 0 or sum(weights) <= 0:
@@ -180,10 +183,26 @@ def simulate(data, name):
                     next_schools = campus["live_schools"][year - 1]
                     campus_cost = max(0, next_schools - live_schools) * campus["setup_per_new_school_gbp"]
                     live_schools = next_schools
-                    campus_new = live_schools * campus["billed_seats_per_school"] * campus["incremental_registration_share"]
-                    campus_registered += campus_new
-                    campus_active += campus_new * g["activation_rate"]
-                license_revenue = live_schools * campus["billed_seats_per_school"] * campus["annual_gbp_per_seat"] / 12
+                    if "eligible_students" in campus:
+                        eligible = campus["eligible_students"][year - 1]
+                        campus_cohorts.append((month, max(0, eligible - campus_eligibility)))
+                        campus_eligibility = eligible
+                        campus_contract_value = campus["annual_contract_value_gbp"][year - 1]
+                    else:
+                        campus_new = live_schools * campus["billed_seats_per_school"] * campus["incremental_registration_share"]
+                        campus_registered += campus_new
+                        campus_active += campus_new * g["activation_rate"]
+                if "eligible_students" in campus:
+                    launch_share = campus["average_mau_share"]
+                    subsequent_share = (campus["first_year_registration_share"] - launch_share) / 11
+                    campus_registered += sum(
+                        students * (launch_share if month == launch else subsequent_share)
+                        for launch, students in campus_cohorts if month - launch < 12
+                    )
+                    campus_active = campus_eligibility * launch_share
+                    license_revenue = campus_contract_value / 12
+                else:
+                    license_revenue = live_schools * campus["billed_seats_per_school"] * campus["annual_gbp_per_seat"] / 12
                 campus_cost += live_schools * campus["annual_ops_per_school_gbp"] / 12
                 campus_upgrades = campus_active * paid_share * mix
             active += campus_active

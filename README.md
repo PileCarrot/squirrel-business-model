@@ -19,3 +19,7 @@ python3 model.py
 运行后生成 `results/monthly.csv` 与 `results/annual.csv`。前者可直接画月收入、部分现金成本和累计差额，后者用于年度汇总。空单元格表示缺少输入。可以用 `--parameters` 指向新的 JSON，用 `--out` 指定输出目录。
 
 更新假设时同步记录单位、分母、来源和证据状态，再重跑结果。当前适合展示驱动因素与敏感性。完整成本、融资额与真实留存尚未验证。
+
+## 最新高校扩张情景
+
+新版使用 `uk_campus_expansion`。运行上述命令后，在两个 CSV 的 `scenario` 列筛选该名称。旧版 `uk_campus_licensing` 可用于复算对照。模型输入来自 [POTI 财务核对表的高校扩张情景](https://docs.google.com/spreadsheets/d/1K1Zop2Rb4Rna9Woqd7Wnvmsa0LfNmP0upHOTvFkPrfE/edit#gid=730224915&range=A109:I117)。
