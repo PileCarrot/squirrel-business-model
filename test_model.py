@@ -55,9 +55,9 @@ class FinancialModelTests(unittest.TestCase):
         monthly = simulate(self.data, name)
         annual = list(annualize(monthly, inputs["annual_finance"]))
         expected = (
-            (25000, 3, 6000, 0, 22192.66, 22374.38, -41607.32, -41607.32),
-            (90000, 8, 81000, 14325.86, 166215.15, 59958.76, 29517.99, 51950.97),
-            (300000, 14, 288000, 51412.66, 598458.14, 203838.71, 203286.01, 200413.68),
+            (25000, 3, 6000, 0, 22192.66, 22374.38, -58087.32, -58087.32),
+            (90225, 8, 81000, 14325.86, 172715.15, 68621.63, 18085.12, 43085.12),
+            (302025, 14, 288000, 51412.66, 647583.14, 219162.88, 261461.95, 255211.95),
         )
         fields = ("registered", "university_license_gbp", "bank_referral_gbp",
                   "revenue_gbp", "partial_cost_gbp", "after_tax_result_gbp",
@@ -65,14 +65,14 @@ class FinancialModelTests(unittest.TestCase):
         for i, (row, (registered, schools, *amounts)) in enumerate(zip(annual, expected)):
             end = monthly[(i + 1) * 12 - 1]
             self.assertEqual(end["campus_schools"], schools)
-            self.assertAlmostEqual(end["registered"], sum(
+            self.assertAlmostEqual(end["market_registered"], sum(
                 series[i] for series in inputs["registration_targets_by_market"].values()
             ))
             self.assertEqual(tuple(round(row[field], 2) for field in fields), (registered, *amounts))
 
         for row in monthly:
             month = row["month"]
-            noncampus_mau = row["mau"] - row["campus_mau"]
+            noncampus_mau = row["market_mau"] - row["campus_mau"]
             noncampus_paid = row["paid"] - row["campus_plus_upgrades"]
             campus_upgrade = row["campus_plus_upgrades"]
             self.assertAlmostEqual(row["merchant_ads_gbp"], (noncampus_mau - noncampus_paid)
@@ -82,11 +82,33 @@ class FinancialModelTests(unittest.TestCase):
             self.assertAlmostEqual(row["subscription_gross_gbp"], row["starter_paid"] * 3.99
                                    + (row["plus_paid"] - campus_upgrade) * 7.99 + campus_upgrade * 4)
             self.assertAlmostEqual(row["bank_usage_gbp"] + row["bank_minimum_top_up_gbp"],
-                                   max(250, (noncampus_paid + row["campus_mau"]) * .25))
+                                   max(250, (noncampus_paid + row["campus_mau"] + row["employer_active_employees"]) * .25))
             self.assertAlmostEqual(row["revenue_gbp"], sum(row[key] for key in (
                 "subscription_gbp", "university_license_gbp", "voucher_gbp",
-                "merchant_ads_gbp", "bank_referral_gbp", "savings_gbp",
+                "merchant_ads_gbp", "bank_referral_gbp", "savings_gbp", "employer_revenue_gbp",
             )))
+
+    def test_employer_cash_accrual_renewal_and_cost_reconciliation(self):
+        name = "uk_eu_investor_growth"
+        months = simulate(self.data, name)
+        for month, row in enumerate(months, 1):
+            self.assertAlmostEqual(row["employer_deferred_revenue_gbp"], sum(
+                x["employer_cash_receipts_gbp"] - x["employer_revenue_gbp"] for x in months[:month]))
+            self.assertAlmostEqual(row["total_cost_gbp"], row["fixed_operating_gbp"] + row["variable_operating_gbp"])
+            self.assertAlmostEqual(row["cash_flow_gbp"], row["operating_profit_gbp"] +
+                                   row["employer_cash_receipts_gbp"] - row["employer_revenue_gbp"] -
+                                   row["corporation_tax_paid_gbp"])
+        self.assertEqual(months[17]["employer_cash_receipts_gbp"], 1500)
+        self.assertEqual(months[17]["employer_pilot_revenue_gbp"], 500)
+        self.assertEqual(months[20]["employer_cash_receipts_gbp"], 4000)
+        self.assertEqual(months[32]["employer_cash_receipts_gbp"], 14500)
+        self.assertEqual(months[35]["employer_arr_standard_gbp"], 63000)
+        self.assertEqual(months[35]["employer_arr_contracted_gbp"], 59000)
+        self.assertEqual(months[35]["employer_annual_eligible_employees"], 5500)
+        self.assertEqual(months[35]["employer_active_employees"], 550)
+        self.assertEqual(months[35]["operating_break_even_month"], 14)
+        self.assertEqual(months[35]["cash_payback_month"], 27)
+        self.assertAlmostEqual(months[35]["peak_funding_required_gbp"], 63336.443498, places=5)
 
 
 if __name__ == "__main__":

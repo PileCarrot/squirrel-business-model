@@ -494,11 +494,11 @@
         "salary_headcount": [
           2,
           3,
-          4
+          3
         ],
         "annual_salary_per_person_gbp": [
-          20000,
-          25000,
+          28000,
+          28000,
           30000
         ],
         "weekly_paid_hours": [
@@ -531,6 +531,158 @@
           0,
           25000,
           0
+        ],
+        "cash_opening_gbp": 0,
+        "tax_payment_lag_months": 10
+      },
+      "employer": {
+        "pilot": {
+          "capacity": 250,
+          "gbp": 1500,
+          "months": 3
+        },
+        "annual_plans": {
+          "Starter": {
+            "capacity": 250,
+            "gbp": 4500
+          },
+          "Growth": {
+            "capacity": 1000,
+            "gbp": 9000
+          },
+          "Enterprise": {
+            "capacity": 5000,
+            "gbp": 20000
+          }
+        },
+        "custom_plan": "Negotiated over 5,000 employees",
+        "licence_months": 12,
+        "conversion_discount_gbp": 500,
+        "registration_share": 0.3,
+        "monthly_active_share": 0.1,
+        "outreach_month": 15,
+        "cohorts": [
+          {
+            "pilot_month": 18,
+            "annual_plan": "Starter",
+            "renewals": 1
+          },
+          {
+            "pilot_month": 20,
+            "annual_plan": "Starter",
+            "renewals": 1
+          },
+          {
+            "pilot_month": 22,
+            "annual_plan": null,
+            "renewals": 0
+          },
+          {
+            "pilot_month": 25,
+            "annual_plan": "Starter",
+            "renewals": 0
+          },
+          {
+            "pilot_month": 25,
+            "annual_plan": null,
+            "renewals": 0
+          },
+          {
+            "pilot_month": 26,
+            "annual_plan": "Growth",
+            "renewals": 0
+          },
+          {
+            "pilot_month": 27,
+            "annual_plan": "Starter",
+            "renewals": 0
+          },
+          {
+            "pilot_month": 27,
+            "annual_plan": "Growth",
+            "renewals": 0
+          },
+          {
+            "pilot_month": 28,
+            "annual_plan": null,
+            "renewals": 0
+          },
+          {
+            "pilot_month": 29,
+            "annual_plan": "Starter",
+            "renewals": 0
+          },
+          {
+            "pilot_month": 30,
+            "annual_plan": "Growth",
+            "renewals": 0
+          },
+          {
+            "pilot_month": 30,
+            "annual_plan": null,
+            "renewals": 0
+          },
+          {
+            "pilot_month": 31,
+            "annual_plan": "Starter",
+            "renewals": 0
+          },
+          {
+            "pilot_month": 32,
+            "annual_plan": "Growth",
+            "renewals": 0
+          },
+          {
+            "pilot_month": 33,
+            "annual_plan": null,
+            "renewals": 0
+          }
+        ],
+        "annual_budget_gbp": [
+          {
+            "dashboard": 0,
+            "sales_marketing": 0,
+            "onboarding_support": 0,
+            "contracts_privacy": 0
+          },
+          {
+            "dashboard": 4000,
+            "sales_marketing": 2000,
+            "onboarding_support": 1000,
+            "contracts_privacy": 1500
+          },
+          {
+            "dashboard": 2000,
+            "sales_marketing": 6000,
+            "onboarding_support": 4000,
+            "contracts_privacy": 1500
+          }
+        ],
+        "roadmap": [
+          [
+            15,
+            "Start employer outreach"
+          ],
+          [
+            18,
+            "Launch paid employer pilots"
+          ],
+          [
+            21,
+            "Sign first annual employer client"
+          ],
+          [
+            24,
+            "Reach 3 pilot employers and 2 annual clients"
+          ],
+          [
+            25,
+            "Launch UK employer programme"
+          ],
+          [
+            36,
+            "Reach 10 annual employer clients"
+          ]
         ]
       }
     }

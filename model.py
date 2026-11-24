@@ -4,6 +4,8 @@ import csv
 import json
 from pathlib import Path
 
+from employer import employer_contribution, project_employers
+
 ROOT = Path(__file__).resolve().parent
 
 
@@ -107,6 +109,7 @@ def simulate(data, name):
     data = {**data, **{key: {**data.get(key, {}), **s.get(key, {})}
                        for key in ("bank_referrals", "merchant_ads", "vouchers", "savings")}}
     campus = s.get("campus")
+    employer = s.get("employer")
     contracts = data.get("partnerships", [])
     aliases = {"bank_referral": "bank_referrals", "voucher": "vouchers",
                "university_license": "campus", "university_licence": "campus",
@@ -114,6 +117,8 @@ def simulate(data, name):
                "app_open_ads": "merchant_ads", "coupon_commission": "vouchers"}
     driver_starts = {key: data[key].get("start_month")
                      for key in ("bank_referrals", "merchant_ads", "vouchers", "savings")}
+    driver_starts["employer"] = min((c["pilot_month"] for c in employer["cohorts"]), default=None) if employer else None
+    aliases.update(employer_pilot="employer", employer_licence="employer", employer_license="employer")
     driver_starts["campus"] = min(campus["launch_months"]) if campus else None
     for contract in contracts:
         stream = contract["stream"].strip().lower().replace("-", "_").replace(" ", "_")
@@ -146,6 +151,7 @@ def simulate(data, name):
     tier_costs = (proxy, proxy) if proxy is not None else tuple(
         direct_cost(c, p, bank_cost) for bank_cost in bank_costs
     )
+    employer_months = project_employers(employer, years * 12, tier_costs[0], bank_costs[0]) if employer else None
     # A scenario proxy covers modeled direct service costs. Selling fees are independent.
     margins = [None if None in (cost, price) else price * (1 - (fee or 0)) - cost
                for price, cost in zip(net_prices, tier_costs)]
@@ -229,6 +235,8 @@ def simulate(data, name):
             )
             orders, voucher, savers, balances, savings, commerce_cost = commerce_lines(data, month, active, counts[1] + campus_upgrades)
             partnership = sum_known([sum(booked.values()), bank_referral, ads, voucher, savings, license_revenue])
+            employer_row = employer_months[month - 1] if employer_months else {}
+            partnership = sum_known([partnership, employer_row.get("employer_revenue_gbp", 0)])
             revenue = sum_known([subscription, partnership])
             service_counts = (counts[0] + campus_active - campus_upgrades, counts[1] + campus_upgrades)
             service = tier_total(service_counts, tier_costs)
@@ -239,8 +247,25 @@ def simulate(data, name):
             minimum_top_up = 0
             if proxy is None and bank_minimum != 0:
                 minimum_top_up = None if None in (bank_minimum, bank_spend) else max(0, bank_minimum - bank_spend)
+            employer_costs = []
+            if employer_row:
+                employer_row.update(employer_contribution(employer_row, bank_spend, bank_minimum))
+                bank_spend += employer_row["employer_bank_usage_gbp"]
+                minimum_top_up = max(0, bank_minimum - bank_spend)
+                service += employer_row["employer_service_gbp"]
+                commerce_variable = orders * data["vouchers"].get("cost_per_order_gbp", 0)
+                employer_costs = [employer_row["employer_fixed_budget_gbp"],
+                                  employer_row["employer_onboarding_support_gbp"]]
+                employer_row.update(
+                    employer_ai_gbp=employer_row["employer_service_gbp"] - employer_row["employer_bank_usage_gbp"]
+                    - employer_row["employer_active_employees"] * c["other_paid_user_month_gbp"],
+                    employer_cloud_and_other_gbp=employer_row["employer_active_employees"] * c["other_paid_user_month_gbp"],
+                    fixed_operating_gbp=fixed + campus_cost + commerce_cost - commerce_variable + employer_costs[0],
+                    variable_operating_gbp=service + minimum_top_up + commerce_variable + selling_fee + employer_costs[1],
+                    market_registered=total_registered, market_mau=active,
+                )
             partial_cost = sum_known([fixed, service, minimum_top_up, commerce_cost,
-                                      campus_cost, selling_fee if selling_fee is not None else 0])
+                                      campus_cost, selling_fee if selling_fee is not None else 0, *employer_costs])
             other_cash = None if other is None else other[year - 1] / 12
             total_cost = sum_known([partial_cost, other_cash]) if selling_fee is not None else None
             partial_net = revenue - partial_cost if None not in (revenue, partial_cost) else None
@@ -251,8 +276,8 @@ def simulate(data, name):
             cac = ratio(c[fixed_keys[0]][year - 1] / 12, new_paid) if new_paid and new_paid > 0 else None
             blended_margin = sum_known([margins[0] * (1 - mix) if margins[0] is not None else None,
                                         margins[1] * mix if margins[1] is not None else None])
-            rows.append(dict(scenario=name, month=month, year=year, registered=total_registered,
-                             mau=active, estimated_dau=dau, paid=paid + campus_upgrades, starter_paid=counts[0], plus_paid=counts[1] + campus_upgrades,
+            rows.append(dict(scenario=name, month=month, year=year, registered=total_registered + employer_row.get("employer_cumulative_registered_employees", 0),
+                             mau=active + employer_row.get("employer_active_employees", 0), estimated_dau=dau, paid=paid + campus_upgrades, starter_paid=counts[0], plus_paid=counts[1] + campus_upgrades,
                              campus_schools=live_schools, campus_mau=campus_active,
                              campus_registered=campus_registered, campus_plus_upgrades=campus_upgrades,
                              university_license_gbp=license_revenue, campus_cost_gbp=campus_cost,
@@ -272,10 +297,56 @@ def simulate(data, name):
                              starter_modeled_margin_gbp=margins[0], plus_modeled_margin_gbp=margins[1],
                              implied_paid_cac_at_target_gbp=cac,
                              modeled_contribution_ltv_gbp=ratio(blended_margin, churn)
-                             if blended_margin is not None else None))
+                             if blended_margin is not None else None, **employer_row))
             previous_paid = paid
         previous_mau, previous_registered = mau, registered
+    if employer_months:
+        apply_monthly_finance(rows, s["annual_finance"])
     return rows
+
+
+def apply_monthly_finance(rows, finance):
+    forecasts = list(annualize(rows, finance))
+    taxes_due = {year["year"] * 12 + finance["tax_payment_lag_months"]: year["corporation_tax_gbp"]
+                 for year in forecasts}
+    opening = finance["cash_opening_gbp"]
+    cash = opening
+    peak_gap = cumulative_profit = cumulative_cost = tax_payable = 0
+    operating_break_even = cash_break_even = None
+    for row in rows:
+        month, year = row["month"], row["year"]
+        annual = forecasts[year - 1]
+        payroll = annual["payroll_cost_gbp"] / 12
+        setup = annual["incorporation_and_setup_gbp"] if month % 12 == 1 else 0
+        filing = annual["confirmation_statement_gbp"] if month % 12 == 1 else 0
+        fixed = row["fixed_operating_gbp"] + payroll + setup + filing + (row["other_cash_gbp"] or 0)
+        total = fixed + row["variable_operating_gbp"]
+        operating_profit = row["revenue_gbp"] - total
+        accrued_tax = annual["corporation_tax_gbp"] if month % 12 == 0 else 0
+        tax_paid = taxes_due.get(month, 0)
+        net_cash = operating_profit - row["employer_revenue_gbp"] + row["employer_cash_receipts_gbp"] - tax_paid
+        cash += net_cash
+        peak_gap = max(peak_gap, -cash)
+        cumulative_profit += operating_profit - accrued_tax
+        cumulative_cost += total
+        tax_payable += accrued_tax - tax_paid
+        if operating_break_even is None and operating_profit >= 0:
+            operating_break_even = month
+        if cash_break_even is None and cash >= opening:
+            cash_break_even = month
+        row.update(
+            payroll_cost_gbp=payroll, incorporation_and_setup_gbp=setup, confirmation_statement_gbp=filing,
+            fixed_operating_gbp=fixed, total_cost_gbp=total, net_gbp=operating_profit,
+            operating_profit_gbp=operating_profit, corporation_tax_gbp=accrued_tax,
+            corporation_tax_paid_gbp=tax_paid, corporation_tax_payable_gbp=tax_payable,
+            after_tax_result_gbp=operating_profit - accrued_tax,
+            cash_flow_gbp=net_cash, cash_balance_gbp=cash,
+            peak_funding_required_gbp=peak_gap,
+            operating_break_even_month=operating_break_even, cash_payback_month=cash_break_even,
+            cumulative_roi=ratio(cumulative_profit, cumulative_cost),
+            employer_direct_contribution_per_active_employee_gbp=ratio(
+                row["employer_direct_contribution_gbp"], row["employer_active_employees"]),
+        )
 
 
 def corporation_tax(profit, finance):
@@ -299,6 +370,36 @@ def annualize(rows, finance=None):
                                            "cumulative_partial_net_gbp", "cash_balance_gbp",
                                            "noncampus_mau_anchor", "noncampus_mau_vs_anchor")}
         annual.update({key: sum_known(row[key] for row in months) for key in sums})
+        if "employer_revenue_gbp" in end:
+            stock = ("employer_active_pilots", "employer_active_clients", "employer_annual_clients",
+                     "employer_starter_clients", "employer_growth_clients", "employer_enterprise_clients",
+                     "employer_annual_eligible_employees", "employer_eligible_employees",
+                     "employer_registered_employees", "employer_cumulative_registered_employees",
+                     "employer_active_employees", "employer_cumulative_paid_clients",
+                     "employer_arr_standard_gbp", "employer_arr_contracted_gbp", "employer_deferred_revenue_gbp")
+            annual.update({key: end[key] for key in stock})
+            employer_flows = ("employer_new_pilots", "employer_new_annual_clients",
+                              "employer_pilot_revenue_gbp", "employer_licence_revenue_gbp",
+                              "employer_conversion_discount_gbp", "employer_revenue_gbp", "employer_cash_receipts_gbp",
+                              "employer_service_gbp", "employer_bank_usage_gbp", "employer_ai_gbp",
+                              "employer_cloud_and_other_gbp", "employer_dashboard_gbp", "employer_sales_marketing_gbp",
+                              "employer_contracts_privacy_gbp", "employer_fixed_budget_gbp", "employer_onboarding_support_gbp",
+                              "employer_incremental_direct_gbp", "employer_direct_contribution_gbp",
+                              "employer_operating_contribution_gbp")
+            annual.update({key: sum(row[key] for row in months) for key in employer_flows})
+            annual["employer_pilot_conversion_rate"] = ratio(annual["employer_new_annual_clients"], annual["employer_new_pilots"])
+            annual["employer_sales_cost_per_new_annual_client_gbp"] = ratio(
+                annual["employer_sales_marketing_gbp"], annual["employer_new_annual_clients"])
+            annual["employer_direct_contribution_per_active_employee_gbp"] = ratio(
+                annual["employer_direct_contribution_gbp"], sum(row["employer_active_employees"] for row in months))
+            if "cash_flow_gbp" in end:
+                annual.update({key: sum(row[key] for row in months) for key in (
+                    "cash_flow_gbp", "operating_profit_gbp", "corporation_tax_paid_gbp",
+                    "fixed_operating_gbp", "variable_operating_gbp")})
+                annual.update({key: end[key] for key in (
+                    "peak_funding_required_gbp", "operating_break_even_month", "cash_payback_month",
+                    "corporation_tax_payable_gbp", "cumulative_roi")})
+                annual["annual_roi"] = ratio(sum(row["after_tax_result_gbp"] for row in months), annual["total_cost_gbp"])
         cost = annual["partial_cost_gbp"]
         annual["partial_cost_to_revenue"] = ratio(cost, annual["revenue_gbp"]) if cost is not None else None
         if finance is not None:

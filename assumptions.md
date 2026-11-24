@@ -56,3 +56,50 @@
 - 沿用最近的 AI、Open Banking 和固定预算。新增优惠券每月 £100 加每合格单 £0.10 的运营拨备。储蓄新增 £1,500 一次性接入和每月 £100 的运营拨备。这些是规划估计。
 
 - 当前英国消费订阅情景按 20% VAT、15% 应用商店费估算。15% 适用于 Google Play 自动续订和符合 Apple Small Business Program 等资格的情形，实际销售渠道组合待验证。[英国 VAT](https://www.gov.uk/vat-rates) · [Apple](https://developer.apple.com/app-store/small-business-program/) · [Google Play](https://support.google.com/googleplay/android-developer/answer/112622?hl=en-en)
+
+## 雇主财务健康业务
+
+`uk_eu_investor_growth` 的企业定价、合同量、续约、注册、月活和预算均为团队预测。目标客户是英国 100–1,000 人企业。英国是主要的企业与高校机构市场。第三年欧洲增长主要来自 B2C，维持原有少量欧洲高校试点。
+
+| 套餐 | 覆盖上限 | 合同金额（不含 VAT） | 期限 | 满额人均年价 |
+|---|---:|---:|---|---:|
+| Pilot Programme | 250 | £1,500 | 3 个月 | — |
+| Starter | 250 | £4,500 | 年度 | £18 |
+| Growth | 1,000 | £9,000 | 年度 | £9 |
+| Enterprise | 5,000 | £20,000 | 年度 | £4 |
+| Custom | 超过 5,000 | 商议 | 商议 | — |
+
+首次试点转年度授权优惠 £500，首签价分别为 £4,000、£8,500、£19,500。试点费单独收取和确认。续约恢复标价。Enterprise 与 Custom 前三年均未预测签约。
+
+- BudgetUp 的机构年授权为 £9,500／1,000 人和 £22,500／5,000 人，并提供可全额抵扣的试点。[BudgetUp 机构授权](https://budgetup.uk/licence)
+- FinWELL 公开提供约 £950 + VAT 起的试点，后续培训与支持可低于每名员工每月 £1。[FinWELL FAQs](https://www.finwell.training/faq)
+- Bippit 面向试点和小团队的 Starter 起价 £3,000。较高档位按规模折扣。[Bippit Pricing](https://bippit.com/pricing)
+
+| 预测指标 | Year 1 | Year 2 | Year 3 |
+|---|---:|---:|---:|
+| 新付费试点 | 0 | 3 | 12 |
+| 新年度客户 | 0 | 2 | 8 |
+| 年末 Starter／Growth／Enterprise | 0／0／0 | 2／0／0 | 6／4／0 |
+| 年末年度授权上限 | 0 | 500 | 5,500 |
+| 累计付费企业 | 0 | 3 | 15 |
+| 年末标价 ARR | £0 | £9,000 | £63,000 |
+| 企业 Dashboard 开发上限 | £0 | £4,000 | £2,000 |
+| B2B 销售及营销上限 | £0 | £2,000 | £6,000 |
+| 接入与客服上限 | £0 | £1,000 | £4,000 |
+| 合同与隐私专项上限 | £0 | £1,500 | £1,500 |
+| 增量预算合计上限 | £0 | £8,500 | £13,500 |
+
+试点转化按 2/3 编排。第二年两个年度客户在 M33、M35 到期时续约。每家试点按上限 250 席位预测，升级只补新增覆盖席位。30% 注册率和 10% 月活率均以覆盖员工为分母。独立企业用户池从原 B2C 或校园驱动中排除。实际跨渠道重叠待核实。模型对企业员工不追加订阅、储蓄分成、银行返佣、优惠券或开屏广告收入。
+
+预算按上限全额建模，用于企业专属外部支出。复用高校授权底座与既有团队。营销只计企业活动，合规只计企业合同与隐私专项，基础设施继续共用。云端与其他直接服务沿用 Starter 合计 £0.15／活跃员工月。当前尚无供应商分项报价，暂合并列示。
+
+| 时间 | 路线图 |
+|---|---|
+| M15 | Start employer outreach |
+| M18 | Launch paid employer pilots |
+| M21 | Sign first annual employer client |
+| M24 | Reach 3 pilot employers and 2 annual clients |
+| M25 | Launch UK employer programme |
+| M36 | Reach 10 annual employer clients |
+
+工资采用 [工资税费与补贴 B9:D10](https://docs.google.com/spreadsheets/d/1K1Zop2Rb4Rna9Woqd7Wnvmsa0LfNmP0upHOTvFkPrfE/edit?gid=784321906#gid=784321906) 的数字，人数 2／3／3，人均 £28,000／£28,000／£30,000。含雇主净 NI 和养老金的人员成本为 £57,305.60／£85,958.40／£92,888.40。

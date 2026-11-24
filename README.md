@@ -22,6 +22,6 @@ python3 model.py
 
 ## 最新融资规划情景
 
-融资规划版使用 `uk_eu_investor_growth`。运行上述命令后，在两个 CSV 的 `scenario` 列筛选该名称。月度输出展示经营收入、已建模经营支出及其差额。年度输出另列工资、雇主 NI、养老金、公司设立和申报费用、公司所得税，以及有无竞争性拨款的税后结余。税后结余按年度确认，实际现金流还取决于收付时间和期初资金。
+融资规划版使用 `uk_eu_investor_growth`，含个人订阅、高校授权、商家与银行收入，以及英国雇主的付费试点和年度授权。可直接下载本次的[月度快照](investor-growth-monthly.csv)及[年度快照](investor-growth-annual.csv)。重跑模型即可对照全部情景。定价、来源、排期与预算见[企业预测假设](assumptions.md#雇主财务健康业务)。企业预收、递延收入、计提与实付公司税、资金缺口及 ROI 分列。
 
-`uk_campus_expansion` 与 `uk_campus_licensing` 保留作历史对照。当前口径见 [POTI 财务核对表](https://docs.google.com/spreadsheets/d/1K1Zop2Rb4Rna9Woqd7Wnvmsa0LfNmP0upHOTvFkPrfE/edit) 的「三年收支」「逐项核对」及「工资税费与补贴」。
+`uk_campus_expansion` 与 `uk_campus_licensing` 保留作历史对照。当前口径见 [POTI 财务核对表](https://docs.google.com/spreadsheets/d/1K1Zop2Rb4Rna9Woqd7Wnvmsa0LfNmP0upHOTvFkPrfE/edit) 的「三年收支」「逐项核对」「企业业务」及「工资税费与补贴」。
